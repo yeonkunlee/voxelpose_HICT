@@ -6,10 +6,11 @@ BACKBONE_MODEL: 'pose_resnet'
 MODEL: 'multi_person_posenet'
 DATA_DIR: ''
 GPUS: '0'
-OUTPUT_DIR: 'output'
-LOG_DIR: 'log'
+OUTPUT_DIR: 'output_alldata'
+LOG_DIR: 'log_alldata'
+# WORKERS: 4
 WORKERS: 4
-PRINT_FREQ: 100
+PRINT_FREQ: 1000
 
 DATASET:
   COLOR_RGB: True
@@ -18,7 +19,8 @@ DATASET:
   DATA_FORMAT: jpg
   DATA_AUGMENTATION: False
   FLIP: False
-  ROOT: 'data/panoptic-toolbox/data/' # 'data/panoptic/'
+#   ROOT: 'data/panoptic-toolbox/data/' # 'data/panoptic/'
+  ROOT: '/datasets_2/panoptic-toolbox/data/' # 'data/panoptic/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
   TEST_SUBSET: 'validation'
@@ -26,8 +28,9 @@ DATASET:
   ROOTIDX: 2
   CAMERA_NUM: 5
 NETWORK:
-  PRETRAINED_BACKBONE: "models/pose_resnet50_panoptic.pth.tar"
-  PRETRAINED:  ''  # 'models/pytorch/imagenet/resnet50-19c8e357.pth'
+  PRETRAINED_BACKBONE: "" # yk indicated path directly. check pose_resnet
+  PRETRAINED:  '/workspace/voxelpose-pytorch/models/pretrained_v2v_from_LT.pth'  # 'null'
+  PRETRAINED:  null  # 'null'
   TARGET_TYPE: gaussian
   IMAGE_SIZE:
   - 960

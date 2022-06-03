@@ -48,6 +48,23 @@ def get_optimizer(model):
     if model.module.backbone is not None:
         for params in model.module.backbone.parameters():
             params.requires_grad = False   # If you want to train the whole model jointly, set it to be True.
+        
+        if config.BACKBONE_MODEL == 'pose_hrnet':
+#             for params in model.module.backbone.keypoint_head.final_layer.parameters():
+#                 params.requires_grad = True    # pretrained backbone final layer initialized. -yk
+#                 print('yk : backbone.final_layer.keypoint_head parameter requres_grad changed True. ONLY IN HRNET')
+                
+            for params in model.module.backbone.keypoint_head.final_layers[1].parameters():
+                params.requires_grad = True
+                print('yk : backbone.final_layer.keypoint_head parameter requres_grad changed True. ONLY IN HRNET')
+        else:
+            for params in model.module.backbone.final_layer.parameters():
+                params.requires_grad = True    # pretrained backbone final layer initialized. -yk
+                print('yk : backbone.final_layer parameter requres_grad changed True')
+
+
+        
+
     for params in model.module.root_net.parameters():
         params.requires_grad = True
     for params in model.module.pose_net.parameters():
@@ -118,6 +135,11 @@ def main():
         model = load_backbone_panoptic(model, config.NETWORK.PRETRAINED_BACKBONE)
     if config.TRAIN.RESUME:
         start_epoch, model, optimizer, best_precision = load_checkpoint(model, optimizer, final_output_dir)
+        
+    if config.NETWORK.PRETRAINED:
+        print('YK : model loaded from pretrained model : {}'.format(config.NETWORK.PRETRAINED))
+        model.load_state_dict(torch.load(config.NETWORK.PRETRAINED), strict=True)
+        
 
     writer_dict = {
         'writer': SummaryWriter(log_dir=tb_log_dir),
@@ -130,7 +152,7 @@ def main():
         print('Epoch: {}'.format(epoch))
 
         # lr_scheduler.step()
-        train_3d(config, model, optimizer, train_loader, epoch, final_output_dir, writer_dict)
+        train_3d(config, model, optimizer, train_loader, epoch, final_output_dir, writer_dict, tmp_dataset=train_dataset)
         precision = validate_3d(config, model, test_loader, final_output_dir)
 
         if precision > best_precision:

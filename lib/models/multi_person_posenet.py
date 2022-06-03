@@ -10,6 +10,8 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 
+from models import pose_hrnet # -yk
+
 from models import pose_resnet
 from models.cuboid_proposal_net import CuboidProposalNet
 from models.pose_regression_net import PoseRegressionNet
@@ -30,12 +32,24 @@ class MultiPersonPoseNet(nn.Module):
         self.USE_GT = cfg.NETWORK.USE_GT
         self.root_id = cfg.DATASET.ROOTIDX
         self.dataset_name = cfg.DATASET.TEST_DATASET
+        
+        self.model_name = cfg.BACKBONE_MODEL
 
-    def forward(self, views=None, meta=None, targets_2d=None, weights_2d=None, targets_3d=None, input_heatmaps=None):
+    def forward(self, views=None, meta=None, targets_2d=None, weights_2d=None, targets_3d=None, input_heatmaps=None, tmp_dataset=None):
         if views is not None:
             all_heatmaps = []
             for view in views:
-                heatmaps = self.backbone(view)
+                if self.model_name == 'pose_hrnet':
+#                     heatmaps = self.backbone.backbone(view)
+#                     heatmaps = self.backbone.keypoint_head(heatmaps)
+                    
+                    heatmaps = self.backbone.backbone(view)
+                    heatmaps = self.backbone.keypoint_head(heatmaps)
+                    heatmaps = heatmaps[1] # [0]: torch.Size([1, 34, 128, 240]), [1]: torch.Size([1, 15, 256, 480])
+                    
+                else:
+                    heatmaps = self.backbone(view)
+
                 all_heatmaps.append(heatmaps)
         else:
             all_heatmaps = input_heatmaps
@@ -63,11 +77,9 @@ class MultiPersonPoseNet(nn.Module):
                 grid_centers[i, :num_person[i], 4] = 1.0
         else:
             root_cubes, grid_centers = self.root_net(all_heatmaps, meta)
-
-            # calculate 3D heatmap loss
             if targets_3d is not None:
                 loss_3d = criterion(root_cubes, targets_3d)
-            del root_cubes
+            del root_cubes   
 
         pred = torch.zeros(batch_size, self.num_cand, self.num_joints, 5, device=device)
         pred[:, :, :, 3:] = grid_centers[:, :, 3:].reshape(batch_size, -1, 1, 2)  # matched gt
@@ -93,7 +105,7 @@ class MultiPersonPoseNet(nn.Module):
                             loss_cord = (loss_cord * (count - 1) +
                                          criterion_cord(single_pose[i:i + 1], targets, True, weights_3d)) / count
                 del single_pose
-
+        
         return pred, all_heatmaps, grid_centers, loss_2d, loss_3d, loss_cord
 
 

@@ -17,7 +17,19 @@ from utils.vis import save_debug_3d_cubes
 logger = logging.getLogger(__name__)
 
 
-def train_3d(config, model, optimizer, loader, epoch, output_dir, writer_dict, device=torch.device('cuda'), dtype=torch.float):
+from utils.augmentation_yk import make_augmented_inputs
+import torchvision.transforms as transforms
+
+normalize = transforms.Normalize(
+    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+transform = transforms.Compose([
+        transforms.ToTensor(),
+        normalize,
+    ])
+
+
+def train_3d(config, model, optimizer, loader, epoch, output_dir, writer_dict, device=torch.device('cuda'), dtype=torch.float, tmp_dataset=None):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -37,16 +49,52 @@ def train_3d(config, model, optimizer, loader, epoch, output_dir, writer_dict, d
     for i, (inputs, targets_2d, weights_2d, targets_3d, meta, input_heatmap) in enumerate(loader):
         data_time.update(time.time() - end)
 
-        if 'panoptic' in config.DATASET.TEST_DATASET:
-            pred, heatmaps, grid_centers, loss_2d, loss_3d, loss_cord = model(views=inputs, meta=meta,
-                                                                              targets_2d=targets_2d,
-                                                                              weights_2d=weights_2d,
-                                                                              targets_3d=targets_3d[0])
-        elif 'campus' in config.DATASET.TEST_DATASET or 'shelf' in config.DATASET.TEST_DATASET:
+        if 'panoptic' in config.DATASET.TRAIN_DATASET:
+            if config.DATASET.FOCAL_LENGTH_AUGMENTATION:
+                inputs_new, inputs_vis = make_augmented_inputs(meta, transform, [0.2, 0.6]) # [0.3, 1.0] # [0.2, 0.4]
+#                 pred, heatmaps, grid_centers, loss_2d, loss_3d, loss_cord = model(views=inputs_new, meta=meta,
+#                                                                                   targets_2d=None,
+#                                                                                   weights_2d=weights_2d,
+#                                                                                   targets_3d=targets_3d[0])
+                pred, heatmaps, grid_centers, loss_2d, loss_3d, loss_cord = model(views=inputs_new, meta=meta,
+                                                                                  targets_2d=None,
+                                                                                  weights_2d=weights_2d,
+                                                                                  targets_3d=targets_3d[0],
+                                                                                  tmp_dataset=tmp_dataset)
+            else:
+                pred, heatmaps, grid_centers, loss_2d, loss_3d, loss_cord = model(views=inputs, meta=meta,
+                                                                                  targets_2d=targets_2d,
+                                                                                  weights_2d=weights_2d,
+                                                                                  targets_3d=targets_3d[0])
+        elif 'campus' in config.DATASET.TRAIN_DATASET or 'shelf' in config.DATASET.TEST_DATASET:
             pred, heatmaps, grid_centers, loss_2d, loss_3d, loss_cord = model(meta=meta, targets_3d=targets_3d[0],
                                                                               input_heatmaps=input_heatmap)
 
+
+            
+# #         https://github.com/microsoft/voxelpose-pytorch/issues/19
+#         ##############################################
+#         loss_2d = loss_2d.mean()
+#         loss_3d = loss_3d.mean()
+#         loss_cord = loss_cord.mean()
+
+#         losses_2d.update(loss_2d.item())
+#         losses_3d.update(loss_3d.item())
+#         losses_cord.update(loss_cord.item())
+#         loss = loss_2d + loss_3d + loss_cord
+#         losses.update(loss.item())
+
+#         loss.backward()
+#         if (i + 1) % accumulation_steps == 0:
+#             optimizer.step()
+#             optimizer.zero_grad()
+#         batch_time.update(time.time() - end)
+#         end = time.time()
+#         ####################################################
+
         loss_2d = loss_2d.mean()
+
+
         loss_3d = loss_3d.mean()
         loss_cord = loss_cord.mean()
 
@@ -54,20 +102,31 @@ def train_3d(config, model, optimizer, loader, epoch, output_dir, writer_dict, d
         losses_3d.update(loss_3d.item())
         losses_cord.update(loss_cord.item())
         loss = loss_2d + loss_3d + loss_cord
+        # balanced loss ? 
+#         loss = 1000.*loss_2d + 5000.*loss_3d + 0.01*loss_cord
         losses.update(loss.item())
+
+#         if loss_cord > 0:
+#             optimizer.zero_grad()
+#             (loss_2d + loss_cord).backward()
+#             optimizer.step()
+
+#         if accu_loss_3d > 0 and (i + 1) % accumulation_steps == 0: # [torch.cuda.FloatTensor [1, 32, 1, 1, 1]]
+#             optimizer.zero_grad()
+#             accu_loss_3d.backward()
+#             optimizer.step()
+#             accu_loss_3d = 0.0
+#         else:
+#             accu_loss_3d += loss_3d / accumulation_steps
 
         if loss_cord > 0:
             optimizer.zero_grad()
-            (loss_2d + loss_cord).backward()
+            (loss_2d + loss_cord + loss_3d).backward()
             optimizer.step()
-
-        if accu_loss_3d > 0 and (i + 1) % accumulation_steps == 0:
+        elif loss_3d > 0:
             optimizer.zero_grad()
-            accu_loss_3d.backward()
+            (loss_3d).backward()
             optimizer.step()
-            accu_loss_3d = 0.0
-        else:
-            accu_loss_3d += loss_3d / accumulation_steps
 
         batch_time.update(time.time() - end)
         end = time.time()
@@ -106,7 +165,10 @@ def train_3d(config, model, optimizer, loader, epoch, output_dir, writer_dict, d
 
             save_debug_3d_cubes(config, meta[0], grid_centers, prefix2)
             save_debug_3d_images(config, meta[0], pred, prefix2)
-
+            
+            # yk save inter-checkpoint
+            torch.save(model.state_dict(), '/workspace/voxelpose-pytorch/output_HRNET_ASSO/panoptic/multi_person_posenet_50/prn64_cpn80x80x20_960x512_cam5_AUGMENTATION/inter-checkpoint.pth')
+            
 
 def validate_3d(config, model, loader, output_dir):
     batch_time = AverageMeter()

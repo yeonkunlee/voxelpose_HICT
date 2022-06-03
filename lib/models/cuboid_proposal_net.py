@@ -10,6 +10,7 @@ from models.v2v_net import V2VNet
 from models.project_layer import ProjectLayer
 from core.proposal import nms
 
+import numpy as np
 
 class ProposalLayer(nn.Module):
     def __init__(self, cfg):
@@ -98,11 +99,43 @@ class CuboidProposalNet(nn.Module):
         self.proposal_layer = ProposalLayer(cfg)
 
     def forward(self, all_heatmaps, meta):
-
+        
+        # meta_i must 0. It is couple with target_3d[0]. # meta[0]['rot_aug_Rz'].shape torch.Size([1, 3, 3])
+        _R_z = meta[0]['rot_aug_Rz']
+        _Txy = meta[0]['trans_aug_Txy']
         initial_cubes, grids = self.project_layer(all_heatmaps, meta,
-                                                  self.grid_size, [self.grid_center], self.cube_size)
+                                                  self.grid_size, [self.grid_center], self.cube_size, \
+                                                  rot_mat=_R_z, trans_vec=_Txy) # debug
+        
+        _R_0_one = np.expand_dims(np.identity(3), 0)
+        _R_0 = torch.from_numpy(np.repeat(_R_0_one, _R_z.shape[0], axis=0))
+#         _T_0_one = np.expand_dims(np.zeros(3), 0)
+#         _T_0 = torch.from_numpy(np.repeat(_T_0_one, _R_z.shape[0], axis=0))
+        
+        original_cubes, _ = self.project_layer(all_heatmaps, meta,
+                                                  self.grid_size, [self.grid_center], self.cube_size, \
+                                                  rot_mat=_R_0) # debug
+
         root_cubes = self.v2v_net(initial_cubes)
         root_cubes = root_cubes.squeeze(1)
-        grid_centers = self.proposal_layer(root_cubes, meta)
+        
+        original_root_cubes = self.v2v_net(original_cubes)
+        original_root_cubes = original_root_cubes.squeeze(1)       
+        grid_centers = self.proposal_layer(original_root_cubes, meta)
 
         return root_cubes, grid_centers
+#         return root_cubes, grid_centers, _Rz
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

@@ -30,7 +30,8 @@ class JointsDataset(Dataset):
         self.is_train = is_train
 
         this_dir = os.path.dirname(__file__)
-        dataset_root = os.path.join(this_dir, '../..', cfg.DATASET.ROOT)
+#         dataset_root = os.path.join(this_dir, '../..', cfg.DATASET.ROOT)
+        dataset_root = os.path.join(cfg.DATASET.ROOT)
         self.dataset_root = os.path.abspath(dataset_root)
         self.root_id = cfg.DATASET.ROOTIDX
         self.image_set = image_set
@@ -59,7 +60,10 @@ class JointsDataset(Dataset):
         self.space_size = np.array(cfg.MULTI_PERSON.SPACE_SIZE)
         self.space_center = np.array(cfg.MULTI_PERSON.SPACE_CENTER)
         self.initial_cube_size = np.array(cfg.MULTI_PERSON.INITIAL_CUBE_SIZE)
-
+        
+        self.grid_Zrotation_augmentation = cfg.DATASET.GRID_ZROTATION_AUGMENTATION
+        self.space_XYtranslation_augmentation = cfg.DATASET.SPACE_XYTRANSLATION_AUGMENTATION
+        
 
     def _get_db(self):
         raise NotImplementedError
@@ -157,6 +161,67 @@ class JointsDataset(Dataset):
 
         target_3d = self.generate_3d_target(joints_3d)
         target_3d = torch.from_numpy(target_3d)
+        
+        
+        
+        ###########################################################################################
+        # RANDOM R, T augmentation of target_3d.
+        # Transform_formular : R(X + T)
+        
+        _Rz = np.zeros((1,1))
+        _Txy = np.zeros((1,1))
+        if self.grid_Zrotation_augmentation or self.space_XYtranslation_augmentation:
+            joints_3d_transformed = copy.deepcopy([np.array(x) for x in db_rec['joints_3d']])
+            
+            if self.space_XYtranslation_augmentation:
+                random_T = 1500.
+                random_trans_x = random_T*2*(np.random.rand() - 0.5)
+                random_trans_y = random_T*2*(np.random.rand() - 0.5)
+                _Txy = np.array([random_trans_x, random_trans_y, 0.])
+                
+                joints_3d_transformed -= _Txy
+            
+            if self.grid_Zrotation_augmentation:
+                theta = (2 * np.pi * np.random.rand())
+                _cos = np.cos(-theta)
+                _sin = np.sin(-theta)
+                _Rz = np.array([[_cos, -_sin, 0],
+                                [_sin, _cos, 0],
+                                [0, 0, 1.]])
+                joints_3d_transformed = [(np.matmul(x, _Rz.T)) for x in joints_3d_transformed]
+                
+            
+                
+        
+            target_3d_transformed = self.generate_3d_target(joints_3d_transformed)
+            target_3d_transformed = torch.from_numpy(target_3d_transformed)
+            
+            
+            # INTERCEPT
+            target_3d = target_3d_transformed        
+
+        
+#         _Rz = np.zeros((1,1))
+# #         _Rz = []
+#         if self.grid_Zrotation_augmentation:
+# #             print(db_rec['joints_3d'][0].shape) # [15,3]
+
+#             theta = (2 * np.pi * np.random.rand())
+#             _cos = np.cos(-theta)
+#             _sin = np.sin(-theta)
+            
+#             _Rz = np.array([[_cos, -_sin, 0],
+#                             [_sin, _cos, 0],
+#                             [0, 0, 1.]])
+            
+# #             joints_3d_rotated = [(np.matmul(np.array(x),_Rz.T)) for x in db_rec['joints_3d']]
+#             joints_3d_rotated = [(np.matmul(np.array(x),_Rz.T)) for x in db_rec['joints_3d']]
+#             target_3d_rotated = self.generate_3d_target(joints_3d_rotated)
+#             target_3d_rotated = torch.from_numpy(target_3d_rotated)
+                
+#             # INTERCEPT
+#             target_3d = target_3d_rotated
+        
 
         if isinstance(self.root_id, int):
             roots_3d = joints_3d_u[:, self.root_id]
@@ -173,7 +238,9 @@ class JointsDataset(Dataset):
             'center': c,
             'scale': s,
             'rotation': r,
-            'camera': db_rec['camera']
+            'camera': db_rec['camera'],
+            'rot_aug_Rz' : _Rz,
+            'trans_aug_Txy' : _Txy
         }
 
         return input, target_heatmap, target_weight, target_3d, meta, input_heatmap

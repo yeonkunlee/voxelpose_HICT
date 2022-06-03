@@ -127,3 +127,16 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#voxelpose_logfiles
+log
+log_alldata
+log_HRNET
+log_HRNET_ASSO
+output
+output_alldata
+output_HRNET
+output_HRNET_ASSO
+tmp_intrinsic
+models
+data
