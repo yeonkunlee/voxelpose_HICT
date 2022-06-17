@@ -13,8 +13,8 @@ def get_pose_net(cfg, is_train=True, device='cuda:0'):
     # https://mmpose.readthedocs.io/en/latest/papers/algorithms.html#higherhrnet-cvpr-2020
     # HRNET : ASSOCICATIVE EMBEDDING + HIGHERHRNET on COCO
     
-    backbone_config = '/workspace/learnable_triangulation/mmpose/configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/higherhrnet_w48_coco_512x512.py'
-    backbone_checkpoint = '/workspace/voxelpose-pytorch/data/higher_hrnet48_coco_512x512-60fedcbc_20200712.pth'
+    backbone_config = '/workspace/voxelpose_HICT/data/mmpose_config/configs/body/2d_kpt_sview_rgb_img/associative_embedding/coco/higherhrnet_w48_coco_512x512.py'
+    backbone_checkpoint = '/workspace/voxelpose_HICT/data/higher_hrnet48_coco_512x512-60fedcbc_20200712.pth'
     
     
     pose_model = init_pose_model(backbone_config, backbone_checkpoint)#, device=args.device.lower()

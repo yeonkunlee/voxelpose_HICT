@@ -51,7 +51,7 @@ def train_3d(config, model, optimizer, loader, epoch, output_dir, writer_dict, d
 
         if 'panoptic' in config.DATASET.TRAIN_DATASET:
             if config.DATASET.FOCAL_LENGTH_AUGMENTATION:
-                inputs_new, inputs_vis = make_augmented_inputs(meta, transform, [0.2, 0.6]) # [0.3, 1.0] # [0.2, 0.4]
+                inputs_new, inputs_vis = make_augmented_inputs(meta, transform, [0.25, 0.8]) # [0.2, 0.6]
 #                 pred, heatmaps, grid_centers, loss_2d, loss_3d, loss_cord = model(views=inputs_new, meta=meta,
 #                                                                                   targets_2d=None,
 #                                                                                   weights_2d=weights_2d,
@@ -167,7 +167,7 @@ def train_3d(config, model, optimizer, loader, epoch, output_dir, writer_dict, d
             save_debug_3d_images(config, meta[0], pred, prefix2)
             
             # yk save inter-checkpoint
-            torch.save(model.state_dict(), '/workspace/voxelpose-pytorch/output_HRNET_ASSO/panoptic/multi_person_posenet_50/prn64_cpn80x80x20_960x512_cam5_AUGMENTATION/inter-checkpoint.pth')
+            torch.save(model.state_dict(), "/workspace/voxelpose_HICT/data/inter-checkpoint.pth")
             
 
 def validate_3d(config, model, loader, output_dir):

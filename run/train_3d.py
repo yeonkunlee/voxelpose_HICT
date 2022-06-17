@@ -45,25 +45,25 @@ def parse_args():
 
 def get_optimizer(model):
     lr = config.TRAIN.LR
+
     if model.module.backbone is not None:
         for params in model.module.backbone.parameters():
-            params.requires_grad = False   # If you want to train the whole model jointly, set it to be True.
+            params.requires_grad = True   # If you want to train the whole model jointly, set it to be True.
+        print('backbone gradient is activated now!')
+
+#     if model.module.backbone is not None:
+#         for params in model.module.backbone.parameters():
+#             params.requires_grad = False   # If you want to train the whole model jointly, set it to be True.
         
-        if config.BACKBONE_MODEL == 'pose_hrnet':
-#             for params in model.module.backbone.keypoint_head.final_layer.parameters():
-#                 params.requires_grad = True    # pretrained backbone final layer initialized. -yk
+#         if config.BACKBONE_MODEL == 'pose_hrnet':
+#             for params in model.module.backbone.keypoint_head.final_layers[1].parameters():
+#                 params.requires_grad = True
 #                 print('yk : backbone.final_layer.keypoint_head parameter requres_grad changed True. ONLY IN HRNET')
-                
-            for params in model.module.backbone.keypoint_head.final_layers[1].parameters():
-                params.requires_grad = True
-                print('yk : backbone.final_layer.keypoint_head parameter requres_grad changed True. ONLY IN HRNET')
-        else:
-            for params in model.module.backbone.final_layer.parameters():
-                params.requires_grad = True    # pretrained backbone final layer initialized. -yk
-                print('yk : backbone.final_layer parameter requres_grad changed True')
+#         else:
+#             for params in model.module.backbone.final_layer.parameters():
+#                 params.requires_grad = True    # pretrained backbone final layer initialized. -yk
+#                 print('yk : backbone.final_layer parameter requres_grad changed True')
 
-
-        
 
     for params in model.module.root_net.parameters():
         params.requires_grad = True
@@ -138,7 +138,8 @@ def main():
         
     if config.NETWORK.PRETRAINED:
         print('YK : model loaded from pretrained model : {}'.format(config.NETWORK.PRETRAINED))
-        model.load_state_dict(torch.load(config.NETWORK.PRETRAINED), strict=True)
+#         model.load_state_dict(torch.load(config.NETWORK.PRETRAINED), strict=True)
+        model.module.load_state_dict(torch.load(config.NETWORK.PRETRAINED), strict=True)
         
 
     writer_dict = {

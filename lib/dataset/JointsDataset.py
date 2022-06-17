@@ -77,7 +77,10 @@ class JointsDataset(Dataset):
     def __getitem__(self, idx):
         db_rec = copy.deepcopy(self.db[idx])
 
+        ######################## ON SERVER, DATASET STORAGE IS VERY LIMITED. ULTANATIVELY, USE PRE-defined dataset on local...
         image_file = db_rec['image']
+        image_file = image_file.replace('datasets_2/panoptic-toolbox', 'datasets/panoptic-toolbox_comp')
+#         print(image_file)
 
         if self.data_format == 'zip':
             from utils import zipreader
