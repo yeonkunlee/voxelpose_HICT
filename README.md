@@ -1,3 +1,12 @@
+# VoxelPose on HICT Server
+
+제일 중요한 차이점은, 서버 스토리지에 충분한 공간이 없어 데이터셋 중 실제로 사용하는 이미지 프레임만 가져왔다는 것입니다.
+이를 위해 로컬 PC에서 pre-defined된 데이터셋 db 파일을 가져와야 합니다. 
+/lib/dataset/JointsDataset.py 의 image_file = image_file.replace('datasets_2/panoptic-toolbox', 'datasets/panoptic-toolbox_comp')
+라인을 참조하세요.
+
+
+
 # VoxelPose
 
 
