@@ -73,7 +73,7 @@ TRAIN:
 TEST:
   MODEL_FILE: 'model_best.pth.tar'
   # originally 4, aug_yk force it 1. need to be fixed.
-  BATCH_SIZE: 4
+  BATCH_SIZE: 1
 DEBUG:
   DEBUG: true
   SAVE_HEATMAPS_GT: false
